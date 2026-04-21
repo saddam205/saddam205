@@ -1,0 +1,208 @@
+# model_config.yaml
+# Machine Learning Model Configuration for AI Trading Bot
+
+# XGBoost Model Configuration
+xgboost:
+  enabled: true
+  model_path: data/models/xgboost_model.model
+  feature_path: data/models/features.txt
+  
+  # Model parameters
+  params:
+    n_estimators: 200
+    max_depth: 6
+    learning_rate: 0.01
+    subsample: 0.8
+    colsample_bytree: 0.8
+    gamma: 0.1
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    min_child_weight: 3
+    objective: multi:softprob
+    eval_metric: mlogloss
+    random_state: 42
+    n_jobs: -1
+  
+  # Training parameters
+  training:
+    early_stopping_rounds: 50
+    validation_split: 0.2
+    num_boost_round: 1000
+  
+  # Features
+  features:
+    lookback_periods: [1, 2, 3, 5, 10, 20]
+    rolling_windows: [5, 10, 20, 50]
+    include_price_features: true
+    include_volume_features: true
+    include_volatility_features: true
+    include_trend_features: true
+
+# Bayesian Neural Network Configuration
+bayesian_nn:
+  enabled: true
+  model_path: data/models/bayesian_nn.pth
+  
+  # Architecture
+  architecture:
+    input_dim: 50
+    hidden_dim: 256
+    output_dim: 3  # SELL, HOLD, BUY
+    num_layers: 3
+  
+  # Training
+  training:
+    epochs: 100
+    batch_size: 64
+    learning_rate: 0.001
+    kl_weight: 0.01
+    num_monte_carlo_samples: 10
+  
+  # Inference
+  inference:
+    num_samples: 10
+    confidence_threshold: 0.65
+
+# Reinforcement Learning Configuration
+reinforcement_learning:
+  enabled: true
+  model_path: data/models/rl_agent.pth
+  
+  # DDPG Hyperparameters
+  hyperparameters:
+    gamma: 0.99
+    tau: 0.005
+    actor_lr: 0.0001
+    critic_lr: 0.001
+    buffer_size: 100000
+    batch_size: 64
+  
+  # Network architecture
+  network:
+    state_dim: 20
+    action_dim: 3
+    hidden_dim: 256
+  
+  # Training
+  training:
+    episodes: 500
+    max_steps: 1000
+    exploration_noise: 0.1
+    target_update_frequency: 1
+
+# Ensemble Configuration
+ensemble:
+  enabled: true
+  method: weighted_voting  # weighted_voting, average, stacking
+  
+  # Model weights
+  weights:
+    xgboost: 0.40
+    bayesian_nn: 0.35
+    rl_agent: 0.25
+  
+  # Dynamic weight adjustment
+  dynamic_weights: true
+  weight_decay: 0.95
+  performance_window: 100
+  
+  # Minimum confidence threshold
+  min_confidence: 0.60
+
+# Meta-Model Configuration (When NOT to trade)
+meta_model:
+  enabled: true
+  model_path: data/models/meta_model.pkl
+  
+  # Parameters
+  threshold: 0.60
+  n_estimators: 100
+  max_depth: 10
+  
+  # Features
+  features:
+    - market_volatility
+    - trend_strength
+    - volume_anomaly
+    - prediction_confidence
+    - ensemble_agreement
+    - time_of_day
+    - market_regime
+
+# PCA Configuration
+pca:
+  enabled: true
+  model_path: data/models/pca.pkl
+  scaler_path: data/models/scaler.pkl
+  
+  # Parameters
+  n_components: 0.95  # Keep 95% variance
+  use_pca: true
+
+# Feature Engineering
+feature_engineering:
+  # Price features
+  price:
+    returns_periods: [1, 2, 3, 5, 10, 20]
+    log_returns: true
+    price_position: true
+    gaps: true
+  
+  # Volume features
+  volume:
+    sma_windows: [5, 10, 20]
+    volume_ratios: true
+    vwap: true
+    obv: true
+  
+  # Volatility features
+  volatility:
+    realized_windows: [5, 10, 20, 50]
+    parkinson_volatility: true
+    atr_period: 14
+    hl_ratio: true
+  
+  # Trend features
+  trend:
+    ma_pairs: [[5, 20], [10, 50], [20, 50]]
+    adx_period: 14
+    price_vs_ma_windows: [20, 50, 200]
+
+# Model Monitoring
+monitoring:
+  # Drift detection
+  drift_detection:
+    enabled: true
+    window_size: 1000
+    reference_window: 5000
+    drift_threshold: 0.05
+  
+  # Performance tracking
+  performance:
+    retrain_threshold_accuracy: 0.55  # Retrain if accuracy drops below 55%
+    retrain_threshold_sharpe: 0.5    # Retrain if Sharpe drops below 0.5
+    evaluation_frequency_hours: 24
+  
+  # Alert thresholds
+  alerts:
+    accuracy_drop_threshold: 0.10
+    confidence_drop_threshold: 0.15
+    feature_drift_threshold: 0.05
+
+# Model Retraining
+retraining:
+  enabled: true
+  frequency_days: 7
+  min_samples: 1000
+  
+  # Online learning
+  online_learning:
+    enabled: false
+    batch_size: 100
+    update_frequency_minutes: 60
+  
+  # Data requirements
+  data:
+    min_training_days: 30
+    validation_days: 7
+    test_days: 7

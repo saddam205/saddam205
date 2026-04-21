@@ -1,0 +1,217 @@
+"""
+main.py
+FastAPI application entry point for AI Trading Bot.
+"""
+
+import logging
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from app.config import config
+from app.api.routes import router as api_router
+from app.api.websocket import router as ws_router
+from app.api.middleware import setup_middleware
+from app.core.trading_engine import trading_engine
+from app.utils.logger import setup_logger
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Application lifespan manager for startup and shutdown events
+    """
+    # Startup
+    logger.info("=" * 60)
+    logger.info("🚀 Starting AI Trading Bot")
+    logger.info("=" * 60)
+    logger.info(f"Version: {app.version}")
+    logger.info(f"Trading Mode: {config.TRADING_MODE}")
+    logger.info(f"Supported Symbols: {len(config.SUPPORTED_SYMBOLS)}")
+    
+    # Start trading engine if not in manual mode
+    if config.TRADING_MODE.upper() != "MANUAL":
+        try:
+            await trading_engine.start()
+            logger.info("Trading engine started")
+        except Exception as e:
+            logger.error(f"Failed to start trading engine: {e}")
+    
+    # Log configuration warnings
+    warnings = config.validate()
+    for warning in warnings:
+        logger.warning(warning)
+    
+    yield
+    
+    # Shutdown
+    logger.info("=" * 60)
+    logger.info("🛑 Shutting down AI Trading Bot")
+    logger.info("=" * 60)
+    
+    # Stop trading engine
+    try:
+        await trading_engine.stop()
+        logger.info("Trading engine stopped")
+    except Exception as e:
+        logger.error(f"Error stopping trading engine: {e}")
+
+
+# Create FastAPI application
+app = FastAPI(
+    title="AI Trading Bot API",
+    description="Advanced AI-powered cryptocurrency trading bot with Bayesian Neural Networks, Reinforcement Learning, and RAG",
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure appropriately for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Setup custom middleware
+setup_middleware(app)
+
+# Include routers
+app.include_router(api_router, prefix="/api/v1", tags=["Trading"])
+app.include_router(ws_router, prefix="/ws", tags=["WebSocket"])
+
+
+# Health check endpoint
+@app.get("/health", tags=["Health"])
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "version": app.version,
+        "trading_mode": config.TRADING_MODE,
+        "timestamp": __import__("datetime").datetime.now().isoformat()
+    }
+
+
+# Root endpoint
+@app.get("/", tags=["Root"])
+async def root():
+    """Root endpoint with API information"""
+    return {
+        "name": "AI Trading Bot",
+        "version": app.version,
+        "description": "Advanced AI-powered cryptocurrency trading bot",
+        "docs": "/docs",
+        "redoc": "/redoc",
+        "health": "/health"
+    }
+
+
+# Metrics endpoint (basic)
+@app.get("/metrics", tags=["Monitoring"])
+async def get_metrics():
+    """Get basic system metrics"""
+    import psutil
+    
+    return {
+        "cpu_percent": psutil.cpu_percent(),
+        "memory_percent": psutil.virtual_memory().percent,
+        "disk_usage_percent": psutil.disk_usage('/').percent,
+        "trading_mode": config.TRADING_MODE
+    }
+
+
+# Exception handlers
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    """HTTP exception handler"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": exc.detail,
+            "status_code": exc.status_code
+        }
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    """General exception handler"""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "error": "Internal server error",
+            "detail": str(exc) if config.LOG_LEVEL == "DEBUG" else None
+        }
+    )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Application lifespan manager for startup and shutdown events
+    """
+    # Startup
+    logger.info("=" * 60)
+    logger.info("🚀 Starting AI Trading Bot")
+    logger.info("=" * 60)
+    logger.info(f"Version: {app.version}")
+    logger.info(f"Trading Mode: {config.TRADING_MODE}")
+    logger.info(f"Supported Symbols: {len(config.SUPPORTED_SYMBOLS)}")
+    
+    # Start trading engine if in both mode (will be handled by run.py)
+    # Only auto-start if configured to do so
+    auto_start = os.getenv("AUTO_START_TRADING", "false").lower() == "true"
+    if auto_start and config.TRADING_MODE.upper() != "MANUAL":
+        try:
+            await trading_engine.start()
+            logger.info("Trading engine started automatically")
+        except Exception as e:
+            logger.error(f"Failed to start trading engine: {e}")
+    
+    # Log configuration warnings
+    warnings = config.validate()
+    for warning in warnings:
+        logger.warning(warning)
+    
+    yield
+    
+    # Shutdown
+    logger.info("=" * 60)
+    logger.info("🛑 Shutting down AI Trading Bot")
+    logger.info("=" * 60)
+    
+    # Stop trading engine if it's running
+    if trading_engine.is_running:
+        try:
+            await trading_engine.stop()
+            logger.info("Trading engine stopped")
+        except Exception as e:
+            logger.error(f"Error stopping trading engine: {e}")
+#-------------------------------------------------------------------------------
+
+
+# Main entry point
+if __name__ == "__main__":
+    import uvicorn
+    
+    # Setup logging
+    setup_logger()
+    
+    # Run application
+    uvicorn.run(
+        "app.main:app",
+        host=config.API_HOST,
+        port=config.API_PORT,
+        reload=config.API_RELOAD,
+        log_level=config.LOG_LEVEL.lower()
+    )

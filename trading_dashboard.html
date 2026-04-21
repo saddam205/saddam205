@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Trading Bot - Live Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { font-size: 32px; }
+        h1 { color: #333; font-size: 24px; }
+        .status-badge {
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .card.full-width { grid-column: 1 / -1; }
+        .card h3 { color: #333; margin-bottom: 15px; font-size: 18px; }
+        .metric-large { font-size: 36px; font-weight: bold; color: #333; margin: 10px 0; }
+        .metric-change { font-size: 14px; margin-bottom: 10px; }
+        .positive { color: #10b981; }
+        .negative { color: #ef4444; }
+        .metrics-row {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            gap: 10px;
+        }
+        .metric-item { flex: 1; }
+        .metric-label { color: #666; font-size: 12px; margin-bottom: 5px; }
+        .metric-value { font-size: 20px; font-weight: bold; color: #333; }
+        .price-list { display: flex; flex-direction: column; gap: 10px; }
+        .price-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .symbol { font-weight: bold; color: #333; }
+        .price { color: #666; }
+        .trade-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        select, input {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            flex: 1;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+        }
+        .btn-buy { background: #10b981; }
+        .btn-buy:hover { background: #059669; }
+        .btn-sell { background: #ef4444; }
+        .btn-sell:hover { background: #dc2626; }
+        .trade-message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            background: #f3f4f6;
+            color: #333;
+            font-size: 14px;
+        }
+        .strategies-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .strategy-card {
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            background: #f9fafb;
+        }
+        .strategy-card h4 { color: #333; margin-bottom: 8px; }
+        .strategy-card p { color: #666; font-size: 12px; margin-bottom: 10px; }
+        .strategy-stats { font-size: 12px; color: #10b981; font-weight: bold; }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <span class="logo-icon">🤖</span>
+                <h1>AI Trading Bot</h1>
+            </div>
+            <div class="status-badge">● VIRTUAL MODE</div>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading trading data...</p>
+            <p style="font-size: 12px; margin-top: 10px;">Connecting to backend at http://localhost:8000</p>
+        </div>
+
+        <div id="dashboard" style="display: none;">
+            <div class="grid">
+                <div class="card">
+                    <h3>💰 Account Balance</h3>
+                    <div id="balance" class="metric-large">$0</div>
+                    <div id="pnl" class="metric-change">Total P&L: $0</div>
+                    <div id="positions-count">Open Positions: 0</div>
+                </div>
+
+                <div class="card">
+                    <h3>📊 Performance</h3>
+                    <div class="metrics-row">
+                        <div class="metric-item">
+                            <div class="metric-label">Win Rate</div>
+                            <div id="win-rate" class="metric-value positive">0%</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Total Trades</div>
+                            <div id="total-trades" class="metric-value">0</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-label">Sharpe Ratio</div>
+                            <div id="sharpe" class="metric-value">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>💹 Market Prices</h3>
+                    <div id="prices" class="price-list">Loading...</div>
+                </div>
+            </div>
+
+            <div class="card full-width">
+                <h3>🔄 Execute Trade</h3>
+                <div class="trade-controls">
+                    <select id="symbol">
+                        <option value="BTC-USD">BTC-USD</option>
+                        <option value="ETH-USD">ETH-USD</option>
+                        <option value="BNB-USD">BNB-USD</option>
+                        <option value="SOL-USD">SOL-USD</option>
+                        <option value="ADA-USD">ADA-USD</option>
+                    </select>
+                    <input type="number" id="quantity" placeholder="Quantity" value="0.001" step="0.001">
+                    <button class="btn-buy" onclick="executeTrade('BUY')">BUY</button>
+                    <button class="btn-sell" onclick="executeTrade('SELL')">SELL</button>
+                </div>
+                <div id="tradeMessage" class="trade-message"></div>
+            </div>
+
+            <div class="card full-width">
+                <h3>🧠 AI Trading Strategies</h3>
+                <div id="strategies" class="strategies-grid">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        
+        async function fetchData() {
+            try {
+                // Fetch portfolio
+                const portfolioRes = await fetch(`${API_BASE}/api/v1/portfolio`);
+                const portfolio = await portfolioRes.json();
+                
+                document.getElementById('balance').innerHTML = `$${portfolio.balance?.toLocaleString() || '0'}`;
+                const pnlClass = portfolio.total_pnl >= 0 ? 'positive' : 'negative';
+                document.getElementById('pnl').innerHTML = `Total P&L: <span class="${pnlClass}">$${portfolio.total_pnl?.toLocaleString() || '0'}</span>`;
+                document.getElementById('positions-count').innerHTML = `Open Positions: ${portfolio.positions_count || 0}`;
+                
+                // Fetch performance
+                const perfRes = await fetch(`${API_BASE}/api/v1/performance`);
+                const perf = await perfRes.json();
+                
+                document.getElementById('win-rate').innerHTML = `${perf.win_rate || 0}%`;
+                document.getElementById('total-trades').innerHTML = perf.total_trades || 0;
+                document.getElementById('sharpe').innerHTML = perf.sharpe_ratio || 0;
+                
+                // Fetch prices
+                const pricesRes = await fetch(`${API_BASE}/api/v1/market/prices`);
+                const prices = await pricesRes.json();
+                
+                let pricesHtml = '';
+                for (const [symbol, price] of Object.entries(prices)) {
+                    pricesHtml += `
+                        <div class="price-item">
+                            <span class="symbol">${symbol}</span>
+                            <span class="price">$${price.toLocaleString()}</span>
+                        </div>
+                    `;
+                }
+                document.getElementById('prices').innerHTML = pricesHtml;
+                
+                // Fetch strategies
+                const strategiesRes = await fetch(`${API_BASE}/api/v1/strategies`);
+                const strategiesData = await strategiesRes.json();
+                
+                let strategiesHtml = '';
+                for (const strategy of strategiesData.strategies || []) {
+                    strategiesHtml += `
+                        <div class="strategy-card">
+                            <h4>${strategy.display_name}</h4>
+                            <p>${strategy.description}</p>
+                            <div class="strategy-stats">
+                                Win Rate: ${strategy.performance?.win_rate || 0}% | 
+                                Profit: $${strategy.performance?.profit?.toLocaleString() || 0}
+                            </div>
+                        </div>
+                    `;
+                }
+                document.getElementById('strategies').innerHTML = strategiesHtml;
+                
+                // Hide loading, show dashboard
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('loading').innerHTML = `
+                    <div class="error">
+                        <strong>⚠️ Connection Error</strong><br>
+                        Cannot connect to backend at ${API_BASE}<br>
+                        Make sure the backend is running: python run.py --mode both --trading-mode VIRTUAL
+                    </div>
+                `;
+            }
+        }
+        
+        async function executeTrade(side) {
+            const symbol = document.getElementById('symbol').value;
+            const quantity = parseFloat(document.getElementById('quantity').value);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/trade/execute?symbol=${symbol}&side=${side}&quantity=${quantity}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                
+                const msgDiv = document.getElementById('tradeMessage');
+                msgDiv.style.background = result.success ? '#d1fae5' : '#fee2e2';
+                msgDiv.style.color = result.success ? '#065f46' : '#991b1b';
+                msgDiv.innerHTML = result.message;
+                
+                setTimeout(() => {
+                    msgDiv.style.background = '#f3f4f6';
+                    msgDiv.style.color = '#333';
+                    msgDiv.innerHTML = '';
+                }, 3000);
+                
+                // Refresh data after trade
+                setTimeout(() => fetchData(), 1000);
+                
+            } catch (error) {
+                const msgDiv = document.getElementById('tradeMessage');
+                msgDiv.style.background = '#fee2e2';
+                msgDiv.style.color = '#991b1b';
+                msgDiv.innerHTML = 'Error executing trade: ' + error.message;
+            }
+        }
+        
+        // Load data immediately and every 3 seconds
+        fetchData();
+        setInterval(fetchData, 3000);
+    </script>
+</body>
+</html>

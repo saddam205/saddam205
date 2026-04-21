@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Trading Bot Dashboard</title>
+    <style>
+        body { font-family: Arial; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: auto; }
+        .card { background: white; border-radius: 10px; padding: 20px; margin: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        h1 { color: white; text-align: center; }
+        .metric { display: inline-block; width: 30%; margin: 10px; padding: 15px; background: #f5f5f5; border-radius: 8px; text-align: center; }
+        .value { font-size: 24px; font-weight: bold; color: #667eea; }
+        .positive { color: #10b981; }
+        .negative { color: #ef4444; }
+        button { background: #667eea; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #5a67d8; }
+        input, select { padding: 8px; margin: 5px; border: 1px solid #ddd; border-radius: 5px; }
+        .trade-panel { text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 AI Trading Bot Dashboard</h1>
+        
+        <div class="card">
+            <h2>💰 Account Summary</h2>
+            <div id="balance">Loading...</div>
+        </div>
+        
+        <div class="card">
+            <h2>📊 Performance</h2>
+            <div id="performance">Loading...</div>
+        </div>
+        
+        <div class="card">
+            <h2>💹 Market Prices</h2>
+            <div id="prices">Loading...</div>
+        </div>
+        
+        <div class="card">
+            <h2>🔄 Trading Panel</h2>
+            <div class="trade-panel">
+                <select id="symbol">
+                    <option value="BTC-USD">BTC-USD</option>
+                    <option value="ETH-USD">ETH-USD</option>
+                    <option value="BNB-USD">BNB-USD</option>
+                    <option value="SOL-USD">SOL-USD</option>
+                </select>
+                <input type="number" id="quantity" placeholder="Quantity" value="0.001" step="0.001">
+                <button onclick="trade('BUY')" style="background: #10b981;">BUY</button>
+                <button onclick="trade('SELL')" style="background: #ef4444;">SELL</button>
+                <div id="tradeResult" style="margin-top: 10px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        async function loadData() {
+            try {
+                const balanceRes = await fetch('http://localhost:8000/api/v1/balance');
+                const balance = await balanceRes.json();
+                document.getElementById('balance').innerHTML = `
+                    <div class="metric"><h3>Balance</h3><div class="value">$${balance.balance?.toLocaleString()}</div></div>
+                    <div class="metric"><h3>Total P&L</h3><div class="value ${balance.total_pnl >= 0 ? 'positive' : 'negative'}">$${balance.total_pnl?.toLocaleString()}</div></div>
+                    <div class="metric"><h3>Positions</h3><div class="value">${balance.positions}</div></div>
+                `;
+                
+                const perfRes = await fetch('http://localhost:8000/api/v1/performance');
+                const perf = await perfRes.json();
+                document.getElementById('performance').innerHTML = `
+                    <div class="metric"><h3>Win Rate</h3><div class="value positive">${perf.win_rate}%</div></div>
+                    <div class="metric"><h3>Total Trades</h3><div class="value">${perf.total_trades}</div></div>
+                    <div class="metric"><h3>Sharpe Ratio</h3><div class="value">${perf.sharpe_ratio}</div></div>
+                `;
+                
+                const pricesRes = await fetch('http://localhost:8000/api/v1/market/prices');
+                const prices = await pricesRes.json();
+                let html = '';
+                for (const [symbol, price] of Object.entries(prices)) {
+                    html += `<div class="metric"><h3>${symbol}</h3><div class="value">$${price}</div></div>`;
+                }
+                document.getElementById('prices').innerHTML = html;
+            } catch(e) {
+                console.error('Error:', e);
+            }
+        }
+        
+        async function trade(side) {
+            const symbol = document.getElementById('symbol').value;
+            const quantity = parseFloat(document.getElementById('quantity').value);
+            
+            try {
+                const response = await fetch(`http://localhost:8000/api/v1/trade/execute?symbol=${symbol}&side=${side}&quantity=${quantity}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                const resultDiv = document.getElementById('tradeResult');
+                resultDiv.style.color = result.success ? '#10b981' : '#ef4444';
+                resultDiv.innerHTML = result.message;
+                setTimeout(() => loadData(), 1000);
+                setTimeout(() => resultDiv.innerHTML = '', 3000);
+            } catch(e) {
+                console.error('Trade error:', e);
+            }
+        }
+        
+        loadData();
+        setInterval(loadData, 3000);
+    </script>
+</body>
+</html>

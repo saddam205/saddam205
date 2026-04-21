@@ -1,0 +1,278 @@
+# trading_config.yaml
+# Trading Configuration for AI Trading Bot
+
+# Exchange Configuration
+exchange:
+  # Primary exchange
+  primary: binance
+  secondary: null
+  
+  # Binance settings
+  binance:
+    api_key: ${BINANCE_API_KEY}
+    api_secret: ${BINANCE_API_SECRET}
+    testnet: true
+    recv_window: 5000
+    timeout: 30
+  
+  # Order types
+  order_types:
+    default: MARKET
+    allowed: [MARKET, LIMIT, STOP_LOSS, STOP_LIMIT]
+
+# Trading Parameters
+trading:
+  # Mode
+  mode: VIRTUAL  # VIRTUAL, PAPER, REAL
+  
+  # Capital
+  initial_capital: 100000
+  base_currency: USDT
+  
+  # Symbols
+  symbols:
+    - BTCUSDT
+    - ETHUSDT
+    - BNBUSDT
+    - SOLUSDT
+    - ADAUSDT
+    - DOGEUSDT
+    - XRPUSDT
+    - AVAXUSDT
+    - MATICUSDT
+    - DOTUSDT
+  
+  # Timeframes
+  timeframes:
+    primary: 1h
+    secondary: 15m
+    tertiary: 4h
+  
+  # Lookback periods
+  lookback:
+    short: 100
+    medium: 200
+    long: 500
+
+# Order Execution
+execution:
+  # Order defaults
+  defaults:
+    market: true
+    time_in_force: GTC
+  
+  # Smart routing
+  smart_routing:
+    enabled: false
+    exchanges: [binance]
+    metrics: [liquidity, fee, latency]
+  
+  # TWAP execution
+  twap:
+    enabled: true
+    default_slices: 10
+    min_slice_interval: 5
+  
+  # Latency simulation (for backtesting)
+  latency_simulation:
+    enabled: true
+    profile: normal  # ideal, low, normal, high, extreme
+    custom_latency_ms: null
+  
+  # Liquidity simulation
+  liquidity_simulation:
+    enabled: true
+    profile: normal  # deep, normal, thin, illiquid
+
+# Strategy Configuration
+strategies:
+  # Active strategies
+  active:
+    - trend_following
+    - mean_reversion
+    - momentum
+  
+  # Strategy rotation
+  rotation:
+    enabled: true
+    interval_minutes: 60
+    criteria: [market_regime, performance, volatility]
+  
+  # Strategy weights
+  weights:
+    trend_following: 0.4
+    mean_reversion: 0.3
+    momentum: 0.3
+  
+  # Strategy parameters
+  parameters:
+    trend_following:
+      fast_ma: 20
+      slow_ma: 50
+      adx_threshold: 25
+      use_volume_confirmation: true
+    
+    mean_reversion:
+      rsi_period: 14
+      rsi_oversold: 30
+      rsi_overbought: 70
+      bb_period: 20
+      bb_std: 2
+    
+    momentum:
+      roc_period: 14
+      roc_threshold: 5
+      macd_fast: 12
+      macd_slow: 26
+      macd_signal: 9
+      volume_confirm: true
+
+# Signal Filtering
+filters:
+  # Minimum requirements
+  min_confidence: 0.65
+  min_volume_ratio: 1.5
+  max_spread_bps: 10
+  
+  # Regime restrictions
+  allowed_regimes:
+    - trending_up
+    - trending_down
+    - breakout
+  
+  # Time restrictions
+  forbidden_hours: []  # 24/7 trading
+  
+  # Filter layers
+  layers:
+    - confidence
+    - volatility
+    - volume
+    - spread
+    - trend_alignment
+    - regime
+    - correlation
+
+# Backtesting
+backtesting:
+  # Default parameters
+  defaults:
+    initial_capital: 100000
+    commission: 0.001
+    slippage: 0.0005
+  
+  # Walk-forward validation
+  walk_forward:
+    enabled: true
+    n_splits: 5
+    train_ratio: 0.6
+    val_ratio: 0.2
+    test_ratio: 0.2
+  
+  # Monte Carlo simulation
+  monte_carlo:
+    enabled: true
+    n_simulations: 1000
+    n_days: 252
+    confidence_level: 0.95
+  
+  # Stress testing
+  stress_tests:
+    enabled: true
+    scenarios:
+      - flash_crash
+      - bear_market
+      - high_volatility
+      - liquidity_crisis
+
+# RAG Configuration
+rag:
+  enabled: true
+  knowledge_base_path: data/knowledge/
+  
+  # Embeddings
+  embeddings:
+    model: all-MiniLM-L6-v2
+    dimension: 384
+    cache_size: 10000
+  
+  # Retrieval
+  retrieval:
+    top_k: 5
+    similarity_threshold: 0.7
+    hybrid_search: true
+    semantic_weight: 0.7
+  
+  # Context
+  context:
+    max_length: 2000
+    include_metadata: true
+
+# Monitoring
+monitoring:
+  # Health checks
+  health_check:
+    enabled: true
+    interval_seconds: 30
+    endpoints: [api, database, exchange, models]
+  
+  # Performance tracking
+  performance:
+    enabled: true
+    save_interval_seconds: 60
+    retention_days: 30
+  
+  # Alerts
+  alerts:
+    enabled: true
+    channels: [telegram, email]
+    throttle_seconds: 60
+    
+    # Alert conditions
+    conditions:
+      - drawdown_exceeded
+      - daily_loss_exceeded
+      - connection_lost
+      - model_drift_detected
+      - large_slippage
+
+# API Configuration
+api:
+  # Server
+  host: 0.0.0.0
+  port: 8000
+  reload: false
+  
+  # CORS
+  cors:
+    enabled: true
+    origins: ["*"]
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    headers: ["*"]
+  
+  # Authentication
+  auth:
+    enabled: false
+    type: api_key  # api_key, jwt
+    api_keys: []
+    jwt_secret: ${JWT_SECRET}
+    jwt_expiration_hours: 24
+  
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+    requests_per_hour: 1000
+    burst_multiplier: 1.5
+
+# Development
+development:
+  debug: false
+  mock_data: false
+  log_level: INFO
+  
+  # Test configuration
+  test:
+    virtual_balance: 500000
+    test_symbols: [BTCUSDT, ETHUSDT]
+    test_duration_days: 30

@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Trading System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #07080f;
+      --surface: #10121e;
+      --surface2: #181b2e;
+      --border: #252840;
+      --accent: #667eea;
+      --accent2: #764ba2;
+      --green: #4ade80;
+      --red: #f87171;
+      --amber: #fbbf24;
+      --text: #e2e4f0;
+      --muted: #7b7f99;
+      --radius: 14px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Navbar ── */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 2rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-size: 1.15rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.02em;
+    }
+
+    .nav-right { display: flex; align-items: center; gap: 1.5rem; }
+    .nav-right a { color: var(--muted); text-decoration: none; font-size: 0.875rem; transition: color .2s; }
+    .nav-right a:hover { color: var(--accent); }
+
+    .conn-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .conn-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--red);
+      transition: background .3s;
+    }
+    .conn-dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+    /* ── Layout ── */
+    .container { max-width: 1440px; margin: 0 auto; padding: 1.5rem 2rem; }
+
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 1rem; margin-bottom: 1.25rem; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 1rem; margin-bottom: 1.25rem; }
+    .grid-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem; }
+
+    @media (max-width: 1100px) {
+      .grid-4 { grid-template-columns: repeat(2,1fr); }
+      .grid-3 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 700px) {
+      .grid-4, .grid-2 { grid-template-columns: 1fr; }
+      .container { padding: 1rem; }
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+    }
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    /* ── KPI tiles ── */
+    .kpi-value { font-size: 1.9rem; font-weight: 700; line-height: 1.1; }
+    .kpi-sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; }
+    .pos { color: var(--green); }
+    .neg { color: var(--red); }
+
+    /* ── Signal badge ── */
+    .signal {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 0.4rem 1rem;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 0.75rem;
+    }
+    .signal-BUY  { background: rgba(74,222,128,.15); color: var(--green); border: 1px solid var(--green); }
+    .signal-SELL { background: rgba(248,113,113,.15); color: var(--red);   border: 1px solid var(--red); }
+    .signal-HOLD { background: rgba(251,191,36,.12);  color: var(--amber); border: 1px solid var(--amber); }
+
+    /* ── Model rows ── */
+    .model-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.875rem;
+    }
+    .model-row:last-child { border-bottom: none; }
+    .model-bar-wrap { width: 100px; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+    .model-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; transition: width .5s; }
+
+    /* ── Chart containers ── */
+    .chart-wrap { position: relative; height: 240px; }
+
+    /* ── Trade controls ── */
+    .trade-row { display: flex; gap: 0.6rem; margin-top: 1rem; flex-wrap: wrap; }
+    .trade-row select, .trade-row input {
+      flex: 1; min-width: 80px;
+      padding: 0.55rem 0.75rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.875rem;
+    }
+    .btn {
+      padding: 0.55rem 1.2rem;
+      border: none; border-radius: 8px;
+      font-weight: 600; font-size: 0.875rem;
+      cursor: pointer; transition: opacity .2s, transform .1s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:active { transform: scale(.97); }
+    .btn-buy  { background: var(--green); color: #000; }
+    .btn-sell { background: var(--red);   color: #000; }
+    .btn-grad { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+
+    /* ── Tables ── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    /* ── Strategy cards ── */
+    .strat-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .strat-name { font-weight: 600; font-size: 0.9rem; }
+    .strat-desc { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .badge-on  { background: rgba(74,222,128,.15); color: var(--green); border: 1px solid var(--green); padding: 2px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: 600; }
+    .badge-off { background: rgba(248,113,113,.15); color: var(--red);   border: 1px solid var(--red);   padding: 2px 8px; border-radius: 6px; font-size: 0.73rem; font-weight: 600; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      padding: 12px 22px; border-radius: 10px;
+      font-size: 0.875rem; font-weight: 500;
+      z-index: 9999;
+      opacity: 0; pointer-events: none;
+      transition: opacity .3s;
+    }
+    #toast.show { opacity: 1; }
+    #toast.success { background: #166534; color: var(--green); border: 1px solid var(--green); }
+    #toast.error   { background: #7f1d1d; color: var(--red);   border: 1px solid var(--red); }
+    #toast.info    { background: #1e3a5f; color: #93c5fd;      border: 1px solid #3b82f6; }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.95rem; font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.85rem;
+    }
+    .section-header span { font-size: 1.1rem; }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0.85rem 0; }
+
+    /* ── Prices strip ── */
+    .prices-strip {
+      display: flex; gap: 1rem; overflow-x: auto;
+      padding-bottom: 0.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .price-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.6rem 1.1rem;
+      min-width: 130px;
+      flex-shrink: 0;
+    }
+    .price-chip .sym { font-size: 0.75rem; color: var(--muted); font-weight: 600; }
+    .price-chip .px  { font-size: 1.1rem; font-weight: 700; margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Navbar ── -->
+<nav class="navbar">
+  <div class="logo">🤖 AI Trading System</div>
+  <div class="nav-right">
+    <a href="/docs" target="_blank">API Docs</a>
+    <a href="/health" target="_blank">Health</a>
+    <div class="conn-badge">
+      <div class="conn-dot" id="connDot"></div>
+      <span id="connLabel">Disconnected</span>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- ── Market Prices Strip ── -->
+  <div class="prices-strip" id="pricesStrip">
+    <div class="price-chip"><div class="sym">BTC/USD</div><div class="px" id="px-BTC-USD">—</div></div>
+    <div class="price-chip"><div class="sym">ETH/USD</div><div class="px" id="px-ETH-USD">—</div></div>
+    <div class="price-chip"><div class="sym">BNB/USD</div><div class="px" id="px-BNB-USD">—</div></div>
+    <div class="price-chip"><div class="sym">SOL/USD</div><div class="px" id="px-SOL-USD">—</div></div>
+    <div class="price-chip"><div class="sym">ADA/USD</div><div class="px" id="px-ADA-USD">—</div></div>
+  </div>
+
+  <!-- ── KPI Row ── -->
+  <div class="grid-4" style="margin-bottom:1.25rem">
+    <div class="card">
+      <div class="card-title">Portfolio Value</div>
+      <div class="kpi-value" id="kpiBalance">$10,000.00</div>
+      <div class="kpi-sub" id="kpiPnl">P&L: $0.00 (0.00%)</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Total Trades</div>
+      <div class="kpi-value" id="kpiTrades">0</div>
+      <div class="kpi-sub" id="kpiWinRate">Win rate: —</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Sharpe Ratio</div>
+      <div class="kpi-value" id="kpiSharpe">—</div>
+      <div class="kpi-sub">Risk-adjusted return</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Max Drawdown</div>
+      <div class="kpi-value neg" id="kpiDrawdown">—</div>
+      <div class="kpi-sub">From peak equity</div>
+    </div>
+  </div>
+
+  <!-- ── Chart + Signal ── -->
+  <div class="grid-3" style="margin-bottom:1.25rem">
+
+    <!-- Price chart -->
+    <div class="card">
+      <div class="section-header"><span>📈</span> Live Price <small id="wsPrice" style="margin-left:auto;color:var(--muted);font-size:.8rem"></small></div>
+      <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+      <div class="trade-row">
+        <select id="symSelect">
+          <option value="BTC-USD">BTC/USD</option>
+          <option value="ETH-USD">ETH/USD</option>
+          <option value="BNB-USD">BNB/USD</option>
+          <option value="SOL-USD">SOL/USD</option>
+          <option value="ADA-USD">ADA/USD</option>
+        </select>
+        <input type="number" id="tradeQty" value="0.01" step="0.001" min="0.001" placeholder="Qty">
+        <button class="btn btn-buy"  onclick="executeTrade('BUY')">BUY</button>
+        <button class="btn btn-sell" onclick="executeTrade('SELL')">SELL</button>
+      </div>
+    </div>
+
+    <!-- AI Signal -->
+    <div class="card">
+      <div class="section-header"><span>🎯</span> AI Signal</div>
+      <div id="sigBadge" class="signal signal-HOLD">HOLD</div>
+      <div style="font-size:.85rem;color:var(--muted)" id="sigConf">Confidence: —</div>
+      <div style="font-size:.8rem;color:var(--muted);margin-top:2px" id="sigUnc">Uncertainty: —</div>
+      <hr class="divider">
+      <div class="card-title">Model Scores</div>
+
+      <div class="model-row">
+        <span>XGBoost</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="model-bar-wrap"><div class="model-bar" id="barXgb" style="width:62%"></div></div>
+          <span id="lblXgb" style="font-size:.8rem;width:36px;text-align:right">62%</span>
+        </div>
+      </div>
+      <div class="model-row">
+        <span>Bayesian NN</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="model-bar-wrap"><div class="model-bar" id="barBnn" style="width:58%"></div></div>
+          <span id="lblBnn" style="font-size:.8rem;width:36px;text-align:right">58%</span>
+        </div>
+      </div>
+      <div class="model-row">
+        <span>RL Agent</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="model-bar-wrap"><div class="model-bar" id="barRl" style="width:65%"></div></div>
+          <span id="lblRl" style="font-size:.8rem;width:36px;text-align:right">65%</span>
+        </div>
+      </div>
+      <div class="model-row">
+        <span>RAG Sentiment</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="model-bar-wrap"><div class="model-bar" id="barRag" style="width:55%"></div></div>
+          <span id="lblRag" style="font-size:.8rem;width:36px;text-align:right">55%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Risk summary -->
+    <div class="card">
+      <div class="section-header"><span>🛡️</span> Risk</div>
+      <div style="display:grid;gap:.55rem;font-size:.85rem">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Stop Loss</span><span class="neg">−2%</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Take Profit</span><span class="pos">+4%</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Positions</span><span id="riskPositions">0</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Exposure</span><span id="riskExposure">$0</span></div>
+      </div>
+      <hr class="divider">
+      <div class="section-header" style="font-size:.85rem"><span>📊</span> Equity Curve</div>
+      <div class="chart-wrap" style="height:130px"><canvas id="equityChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── Trades + Positions ── -->
+  <div class="grid-2" style="margin-bottom:1.25rem">
+
+    <div class="card">
+      <div class="section-header"><span>📋</span> Recent Trades</div>
+      <table>
+        <thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Price</th><th>Qty</th><th>P&amp;L</th></tr></thead>
+        <tbody id="tblTrades"><tr><td colspan="6" style="color:var(--muted);text-align:center;padding:1.5rem">No trades yet</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="section-header"><span>💼</span> Open Positions</div>
+      <table>
+        <thead><tr><th>Symbol</th><th>Qty</th><th>Entry</th><th>Current</th><th>P&amp;L</th></tr></thead>
+        <tbody id="tblPositions"><tr><td colspan="5" style="color:var(--muted);text-align:center;padding:1.5rem">No open positions</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Strategies ── -->
+  <div class="card" style="margin-bottom:1.25rem">
+    <div class="section-header"><span>🧠</span> AI Strategies</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.75rem" id="stratGrid">
+      <div style="color:var(--muted);font-size:.85rem">Loading strategies…</div>
+    </div>
+  </div>
+
+  <!-- ── System Status ── -->
+  <div class="card">
+    <div class="section-header"><span>⚙️</span> System Status</div>
+    <div style="display:flex;flex-wrap:wrap;gap:2rem;font-size:.85rem">
+      <div><span style="color:var(--muted)">Mode: </span><span id="sysMode">—</span></div>
+      <div><span style="color:var(--muted)">Version: </span><span id="sysVer">—</span></div>
+      <div><span style="color:var(--muted)">Last Update: </span><span id="sysTime">—</span></div>
+      <div><span style="color:var(--muted)">WebSocket: </span><span id="wsStatus">Connecting…</span></div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<div id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   CONFIG — change BASE_URL if API is on different host
+═══════════════════════════════════════════════ */
+const BASE = '';          // e.g. 'http://localhost:8000' if serving separately
+const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/`;
+
+/* ═══════════════════════════════════════════════
+   CHARTS
+═══════════════════════════════════════════════ */
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { ticks: { color: '#7b7f99', maxTicksLimit: 8 }, grid: { color: '#1a1d30' } },
+    y: { ticks: { color: '#7b7f99' }, grid: { color: '#1a1d30' } }
+  }
+};
+
+let priceChart, equityChart;
+let priceHistory = [];
+let equityHistory = [];
+
+function initCharts() {
+  priceChart = new Chart(
+    document.getElementById('priceChart').getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Price', data: [], borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.08)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] },
+      options: { ...chartDefaults }
+    }
+  );
+
+  equityChart = new Chart(
+    document.getElementById('equityChart').getContext('2d'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ label: 'Equity', data: [], borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.08)', fill: true, tension: 0.4, pointRadius: 0, borderWidth: 2 }] },
+      options: { ...chartDefaults, scales: { x: { display: false }, y: { ticks: { color: '#7b7f99' }, grid: { color: '#1a1d30' } } } }
+    }
+  );
+}
+
+function pushPrice(price, time) {
+  priceHistory.push({ price, time });
+  if (priceHistory.length > 60) priceHistory.shift();
+  priceChart.data.labels = priceHistory.map(d => d.time);
+  priceChart.data.datasets[0].data = priceHistory.map(d => d.price);
+  priceChart.update('none');
+}
+
+function pushEquity(value) {
+  const time = new Date().toLocaleTimeString();
+  equityHistory.push({ value, time });
+  if (equityHistory.length > 60) equityHistory.shift();
+  equityChart.data.labels = equityHistory.map(d => d.time);
+  equityChart.data.datasets[0].data = equityHistory.map(d => d.value);
+  equityChart.update('none');
+}
+
+/* ═══════════════════════════════════════════════
+   WEBSOCKET  (native WS — matches websocket.py)
+═══════════════════════════════════════════════ */
+let ws = null;
+let wsRetryTimer = null;
+
+function connectWS() {
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    setConn(true);
+    document.getElementById('wsStatus').textContent = 'Connected';
+    if (wsRetryTimer) { clearTimeout(wsRetryTimer); wsRetryTimer = null; }
+  };
+
+  ws.onmessage = (evt) => {
+    try {
+      const data = JSON.parse(evt.data);
+      handleWS(data);
+    } catch(e) { /* ignore */ }
+  };
+
+  ws.onclose = () => {
+    setConn(false);
+    document.getElementById('wsStatus').textContent = 'Reconnecting…';
+    wsRetryTimer = setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+function handleWS(data) {
+  if (data.type === 'market_update') {
+    const t = new Date().toLocaleTimeString();
+    document.getElementById('wsPrice').textContent = `$${data.price?.toLocaleString() || ''}`;
+    pushPrice(data.price, t);
+    // Update signal if present
+    if (data.signal) {
+      const sig = data.signal;
+      const badge = document.getElementById('sigBadge');
+      badge.textContent = sig;
+      badge.className = `signal signal-${sig}`;
+      document.getElementById('sigConf').textContent = `Confidence: ${((data.confidence||0)*100).toFixed(1)}%`;
+    }
+  }
+}
+
+function setConn(on) {
+  document.getElementById('connDot').className = 'conn-dot' + (on ? ' live' : '');
+  document.getElementById('connLabel').textContent = on ? 'Live' : 'Disconnected';
+}
+
+/* ═══════════════════════════════════════════════
+   API CALLS — all routes match routes.py exactly
+═══════════════════════════════════════════════ */
+async function api(path, opts) {
+  try {
+    const r = await fetch(BASE + path, opts);
+    if (!r.ok) throw new Error(r.statusText);
+    return await r.json();
+  } catch(e) {
+    console.warn('API', path, e.message);
+    return null;
+  }
+}
+
+/* /api/v1/portfolio */
+async function fetchPortfolio() {
+  const d = await api('/api/v1/portfolio');
+  if (!d) return;
+  document.getElementById('kpiBalance').textContent = `$${d.balance?.toLocaleString('en', {minimumFractionDigits:2,maximumFractionDigits:2})}`;
+  const pnl = d.total_pnl ?? 0;
+  const pct = d.pnl_percent ?? 0;
+  const el = document.getElementById('kpiPnl');
+  el.textContent = `P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pct.toFixed(2)}%)`;
+  el.className = 'kpi-sub ' + (pnl >= 0 ? 'pos' : 'neg');
+
+  document.getElementById('riskPositions').textContent = d.positions_count ?? 0;
+  const exposure = Object.values(d.positions || {}).reduce((s,p) => s + (p.quantity * (p.current_price || p.entry_price || 0)), 0);
+  document.getElementById('riskExposure').textContent = `$${exposure.toFixed(2)}`;
+
+  pushEquity(d.balance ?? 10000);
+}
+
+/* /api/v1/performance */
+async function fetchPerformance() {
+  const d = await api('/api/v1/performance');
+  if (!d) return;
+  document.getElementById('kpiTrades').textContent = d.total_trades ?? 0;
+  document.getElementById('kpiWinRate').textContent = `Win rate: ${d.win_rate?.toFixed(1) ?? '—'}%`;
+  document.getElementById('kpiSharpe').textContent = d.sharpe_ratio?.toFixed(2) ?? '—';
+  const dd = document.getElementById('kpiDrawdown');
+  dd.textContent = `−${d.max_drawdown?.toFixed(1) ?? '0.0'}%`;
+}
+
+/* /api/v1/market/prices */
+async function fetchPrices() {
+  const d = await api('/api/v1/market/prices');
+  if (!d) return;
+  for (const [sym, price] of Object.entries(d)) {
+    const el = document.getElementById(`px-${sym}`);
+    if (el) el.textContent = `$${price.toLocaleString('en', {minimumFractionDigits: price < 1 ? 4 : 2})}`;
+  }
+}
+
+/* /api/v1/positions  — returns dict keyed by symbol */
+async function fetchPositions() {
+  const d = await api('/api/v1/positions');
+  if (!d) return;
+  const tbody = document.getElementById('tblPositions');
+  const entries = Object.entries(d);
+  if (entries.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:1.5rem">No open positions</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = entries.map(([sym, p]) => {
+    const pnl = ((p.current_price || p.entry_price) - p.entry_price) * p.quantity;
+    return `<tr>
+      <td>${sym}</td>
+      <td>${p.quantity?.toFixed(6)}</td>
+      <td>$${p.entry_price?.toFixed(2)}</td>
+      <td>$${(p.current_price || p.entry_price)?.toFixed(2)}</td>
+      <td class="${pnl>=0?'pos':'neg'}">$${pnl.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* /api/v1/balance — used for recent-trades proxy */
+async function fetchTrades() {
+  // routes.py doesn't have a /trades endpoint, so we use locally stored trades
+  // or fall back to showing empty state.
+  const tbody = document.getElementById('tblTrades');
+  if (tradeLog.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:1.5rem">No trades yet</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = [...tradeLog].reverse().slice(0,10).map(t => `
+    <tr>
+      <td>${t.time}</td>
+      <td>${t.symbol}</td>
+      <td style="color:${t.side==='BUY'?'var(--green)':'var(--red)'}">${t.side}</td>
+      <td>$${t.price?.toLocaleString('en',{minimumFractionDigits:2})}</td>
+      <td>${t.qty}</td>
+      <td class="${(t.pnl||0)>=0?'pos':'neg'}">${t.pnl != null ? '$'+t.pnl.toFixed(2) : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+/* /api/v1/strategies */
+async function fetchStrategies() {
+  const d = await api('/api/v1/strategies');
+  if (!d?.strategies) return;
+  document.getElementById('stratGrid').innerHTML = d.strategies.map(s => `
+    <div class="strat-card">
+      <div>
+        <div class="strat-name">${s.display_name}</div>
+        <div class="strat-desc">${s.description}</div>
+        <div style="font-size:.75rem;margin-top:4px;color:var(--muted)">
+          Win: <span class="pos">${s.performance?.win_rate ?? '—'}%</span> &nbsp;
+          Profit: <span class="pos">$${s.performance?.profit?.toLocaleString() ?? '—'}</span>
+        </div>
+      </div>
+      <span class="${s.enabled?'badge-on':'badge-off'}">${s.enabled?'ON':'OFF'}</span>
+    </div>
+  `).join('');
+}
+
+/* /api/v1/status */
+async function fetchStatus() {
+  const d = await api('/api/v1/status');
+  if (!d) return;
+  document.getElementById('sysMode').textContent = d.mode ?? '—';
+  document.getElementById('sysVer').textContent = d.version ?? '—';
+  document.getElementById('sysTime').textContent = d.timestamp ? new Date(d.timestamp).toLocaleTimeString() : '—';
+}
+
+/* ═══════════════════════════════════════════════
+   TRADE EXECUTION  — POST /api/v1/trade/execute
+═══════════════════════════════════════════════ */
+let tradeLog = [];
+
+async function executeTrade(side) {
+  const symbol = document.getElementById('symSelect').value;
+  const quantity = parseFloat(document.getElementById('tradeQty').value);
+  if (!quantity || quantity <= 0) { toast('Enter a valid quantity', 'error'); return; }
+
+  const url = `${BASE}/api/v1/trade/execute?symbol=${encodeURIComponent(symbol)}&side=${side}&quantity=${quantity}`;
+  const d = await api(url, { method: 'POST' });
+  if (!d) { toast('Could not reach API', 'error'); return; }
+
+  if (d.success) {
+    toast(d.message, 'success');
+    // record locally for trades table
+    tradeLog.push({
+      time: new Date().toLocaleTimeString(),
+      symbol, side, qty: quantity,
+      price: d.price ?? null,
+      pnl: d.pnl ?? null
+    });
+    fetchTrades();
+    fetchPortfolio();
+    fetchPositions();
+  } else {
+    toast(d.message || 'Trade failed', 'error');
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════ */
+let toastTimer;
+function toast(msg, type='info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3500);
+}
+
+/* ═══════════════════════════════════════════════
+   BOOT
+═══════════════════════════════════════════════ */
+initCharts();
+connectWS();
+
+// Initial load
+fetchPortfolio();
+fetchPerformance();
+fetchPrices();
+fetchPositions();
+fetchTrades();
+fetchStrategies();
+fetchStatus();
+
+// Polling intervals
+setInterval(fetchPortfolio,  8000);
+setInterval(fetchPerformance, 15000);
+setInterval(fetchPrices,      5000);
+setInterval(fetchPositions,   8000);
+setInterval(fetchTrades,      8000);
+setInterval(fetchStatus,     30000);
+</script>
+</body>
+</html>

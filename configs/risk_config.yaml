@@ -1,0 +1,204 @@
+# risk_config.yaml
+# Risk Management Configuration for AI Trading Bot
+
+# Global Risk Limits
+global_limits:
+  # Position limits
+  max_position_pct: 0.10      # Maximum 10% of capital per position
+  min_position_pct: 0.01      # Minimum 1% of capital per position
+  max_portfolio_risk: 0.20    # Maximum 20% portfolio risk
+  
+  # Loss limits
+  max_daily_loss_pct: 0.05    # Stop trading after 5% daily loss
+  max_weekly_loss_pct: 0.10   # Stop trading after 10% weekly loss
+  max_monthly_loss_pct: 0.15  # Stop trading after 15% monthly loss
+  
+  # Drawdown limits
+  max_drawdown_pct: 0.15      # Emergency stop at 15% drawdown
+  drawdown_warning_pct: 0.10  # Warning at 10% drawdown
+  
+  # Trade limits
+  max_daily_trades: 50
+  max_concurrent_positions: 5
+  max_consecutive_losses: 5
+
+# Per-Trade Risk
+per_trade:
+  # Risk per trade
+  risk_per_trade_pct: 0.02    # Risk 2% of capital per trade
+  
+  # Position sizing methods
+  position_sizing:
+    default_method: combined   # combined, kelly, risk_based, volatility_adjusted
+    kelly_fraction: 0.25       # Use 25% of Kelly for safety
+    
+    # Kelly parameters
+    kelly:
+      win_rate_history: 100
+      avg_win_loss_ratio: 1.5
+      max_kelly: 0.25
+    
+    # Risk-based parameters
+    risk_based:
+      stop_loss_pct: 0.02      # Default 2% stop loss
+      confidence_multiplier: true
+  
+  # Volatility adjustment
+  volatility_adjustment:
+    enabled: true
+    target_volatility: 0.02    # Target 2% daily volatility
+    min_volatility: 0.005
+    max_volatility: 0.05
+    adjustment_range: [0.3, 2.0]
+
+# Stop Loss Configuration
+stop_loss:
+  # Default stop loss
+  default_pct: 0.02            # 2% default stop loss
+  
+  # Dynamic stop loss based on volatility
+  dynamic:
+    enabled: true
+    atr_multiplier: 2.0        # 2x ATR
+    min_stop_pct: 0.01
+    max_stop_pct: 0.05
+  
+  # Trailing stop
+  trailing_stop:
+    enabled: true
+    activation_pct: 0.02       # Activate after 2% profit
+    trail_pct: 0.01            # Trail by 1%
+    
+  # Time-based stop
+  time_stop:
+    enabled: true
+    max_hold_hours: 48         # Close after 48 hours
+
+# Take Profit Configuration
+take_profit:
+  # Default risk-reward ratios
+  risk_reward_ratios:
+    conservative: 1.5
+    moderate: 2.0
+    aggressive: 3.0
+  
+  # Default ratio
+  default_ratio: 2.0
+  
+  # Partial take profits
+  partial_exits:
+    enabled: true
+    levels:
+      - profit_pct: 0.02
+        exit_pct: 0.25          # Exit 25% at 2% profit
+      - profit_pct: 0.04
+        exit_pct: 0.25          # Exit another 25% at 4% profit
+      - profit_pct: 0.06
+        exit_pct: 0.25          # Exit another 25% at 6% profit
+      - profit_pct: 0.08
+        exit_pct: 0.25          # Exit final 25% at 8% profit
+
+# Portfolio Risk
+portfolio:
+  # Correlation limits
+  correlation:
+    max_correlation: 0.70       # Maximum allowed correlation
+    check_assets: true
+    correlation_window: 60      # Days for correlation calculation
+  
+  # Sector exposure
+  sector_limits:
+    crypto: 0.50                # Max 50% in crypto
+    defi: 0.30                  # Max 30% in DeFi
+    layer1: 0.40                # Max 40% in Layer 1
+    meme: 0.10                  # Max 10% in meme coins
+  
+  # Hedging
+  hedging:
+    enabled: true
+    min_hedge_ratio: 0.20       # Hedge at least 20% of portfolio
+    hedge_asset: USDT           # Hedge with USDT
+
+# Risk Metrics
+metrics:
+  # Value at Risk (VaR)
+  var:
+    enabled: true
+    confidence_levels: [0.95, 0.99]
+    lookback_days: 252
+    method: historical         # historical, parametric, monte_carlo
+  
+  # Conditional VaR (CVaR)
+  cvar:
+    enabled: true
+    confidence_level: 0.95
+  
+  # Expected Shortfall
+  expected_shortfall:
+    enabled: true
+    confidence_level: 0.95
+  
+  # Maximum Drawdown
+  max_drawdown:
+    lookback_days: 252
+    warning_threshold: 0.10
+    critical_threshold: 0.15
+
+# Risk Monitoring
+monitoring:
+  # Real-time monitoring
+  real_time:
+    enabled: true
+    check_interval_seconds: 5
+  
+  # Risk reports
+  reports:
+    daily: true
+    weekly: true
+    monthly: true
+  
+  # Alert thresholds
+  alerts:
+    drawdown_warning: 0.08
+    drawdown_critical: 0.12
+    daily_loss_warning: 0.03
+    daily_loss_critical: 0.05
+    consecutive_losses_warning: 3
+    consecutive_losses_critical: 5
+
+# Kill Switch
+kill_switch:
+  enabled: true
+  auto_activate:
+    drawdown_exceeded: 0.15
+    daily_loss_exceeded: 0.05
+    consecutive_losses: 5
+    system_error: true
+    market_crash: true
+  
+  auto_recovery:
+    enabled: true
+    delay_minutes: 30
+  
+  manual_override: true
+
+# Position Sizer (Detailed)
+position_sizer:
+  # Method weights
+  method_weights:
+    risk_based: 0.40
+    kelly: 0.30
+    volatility_adjusted: 0.30
+  
+  # Constraints
+  constraints:
+    max_position_value: null    # No hard limit (use percentage)
+    min_position_value: 10      # Minimum $10 position
+    round_to: 6                 # Round to 6 decimal places
+  
+  # Risk scaling
+  risk_scaling:
+    enabled: true
+    volatility_adjustment: true
+    momentum_adjustment: true
+    correlation_adjustment: true

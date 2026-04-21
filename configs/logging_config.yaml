@@ -1,0 +1,165 @@
+# logging_config.yaml
+# Logging configuration for AI Trading Bot
+
+version: 1
+disable_existing_loggers: false
+
+# Formatters
+formatters:
+  json:
+    format: '{"timestamp": "%(asctime)s", "level": "%(levelname)s", "logger": "%(name)s", "message": "%(message)s", "module": "%(module)s", "function": "%(funcName)s", "line": %(lineno)d}'
+    datefmt: '%Y-%m-%dT%H:%M:%S'
+  
+  detailed:
+    format: '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+  
+  simple:
+    format: '%(asctime)s - %(levelname)s - %(message)s'
+    datefmt: '%H:%M:%S'
+
+# Handlers
+handlers:
+  # Console handler
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: detailed
+    stream: ext://sys.stdout
+
+  # Trading log file (rotating)
+  trading_file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: json
+    filename: data/logs/trading.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 10
+    encoding: utf-8
+
+  # Error log file
+  error_file:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: detailed
+    filename: data/logs/errors.log
+    maxBytes: 10485760  # 10MB
+    backupCount: 20
+    encoding: utf-8
+
+  # Performance log file
+  performance_file:
+    class: logging.handlers.TimedRotatingFileHandler
+    level: INFO
+    formatter: json
+    filename: data/logs/performance.log
+    when: midnight
+    backupCount: 30
+    encoding: utf-8
+
+  # Trade execution log
+  trades_file:
+    class: logging.handlers.RotatingFileHandler
+    level: INFO
+    formatter: json
+    filename: data/logs/trades.log
+    maxBytes: 5242880  # 5MB
+    backupCount: 50
+    encoding: utf-8
+
+  # System metrics log
+  metrics_file:
+    class: logging.handlers.TimedRotatingFileHandler
+    level: DEBUG
+    formatter: json
+    filename: data/logs/metrics.log
+    when: hour
+    backupCount: 168  # 7 days
+    encoding: utf-8
+
+# Loggers
+loggers:
+  # Trading logger
+  trading:
+    level: INFO
+    handlers: [console, trading_file, error_file]
+    propagate: false
+    qualname: trading
+
+  # Model logger
+  model:
+    level: INFO
+    handlers: [console, trading_file]
+    propagate: false
+    qualname: model
+
+  # API logger
+  api:
+    level: INFO
+    handlers: [console, trading_file]
+    propagate: false
+    qualname: api
+
+  # Execution logger
+  execution:
+    level: INFO
+    handlers: [console, trades_file, error_file]
+    propagate: false
+    qualname: execution
+
+  # Performance logger
+  performance:
+    level: INFO
+    handlers: [performance_file]
+    propagate: false
+    qualname: performance
+
+  # System logger
+  system:
+    level: INFO
+    handlers: [console, metrics_file, error_file]
+    propagate: false
+    qualname: system
+
+  # Development logger
+  development:
+    level: DEBUG
+    handlers: [console]
+    propagate: false
+    qualname: development
+
+# Root logger
+root:
+  level: WARNING
+  handlers: [console]
+  propagate: true
+
+# Logging levels for third-party libraries
+loggers:
+  urllib3:
+    level: WARNING
+    propagate: false
+  
+  requests:
+    level: WARNING
+    propagate: false
+  
+  binance:
+    level: WARNING
+    propagate: false
+  
+  yfinance:
+    level: WARNING
+    propagate: false
+  
+  matplotlib:
+    level: WARNING
+    propagate: false
+  
+  tensorflow:
+    level: WARNING
+    propagate: false
+  
+  torch:
+    level: WARNING
+    propagate: false

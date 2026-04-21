@@ -1,0 +1,62 @@
+import os
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
+
+class Settings(BaseSettings):
+    # API Keys
+    BINANCE_API_KEY: str = "your_api_key_here"
+    BINANCE_API_SECRET: str = "your_api_secret_here"
+    
+    # App Settings
+    PROJECT_NAME: str = "AI Trading Bot"
+    DEBUG: bool = True
+    TRADING_MODE: str = "VIRTUAL"
+    LOG_LEVEL: str = "INFO"
+    
+    # Trading Parameters (Matching your .env exactly)
+    DEFAULT_INVESTMENT_AMOUNT: float = 1000.0
+    MAX_POSITION_SIZE: float = 0.1
+    MIN_CONFIDENCE_THRESHOLD: float = 0.65
+    STOP_LOSS_PERCENT: float = 2.0
+    TAKE_PROFIT_PERCENT: float = 4.0
+
+    # This tells Pydantic to read the .env file
+
+    # Server / runtime (referenced by run.py and main.py)
+    API_HOST: str = "0.0.0.0"
+    API_PORT: int = 8000
+    API_RELOAD: bool = False
+
+    # Trading capital
+    DEFAULT_INVESTMENT: float = 10000.0
+    BACKTEST_INITIAL_CAPITAL: float = 100000.0
+
+    # Supported symbols
+    SUPPORTED_SYMBOLS: list = [
+        "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT",
+        "ADAUSDT", "AVAXUSDT", "DOGEUSDT", "MATICUSDT", "LINKUSDT"
+    ]
+
+    def validate(self) -> list:
+        """Return list of configuration warnings."""
+        warnings = []
+        if self.BINANCE_API_KEY == "your_api_key_here":
+            warnings.append("BINANCE_API_KEY is not set — running in demo mode.")
+        if self.BINANCE_API_SECRET == "your_api_secret_here":
+            warnings.append("BINANCE_API_SECRET is not set — running in demo mode.")
+        if self.TRADING_MODE == "REAL":
+            if self.BINANCE_API_KEY == "your_api_key_here":
+                warnings.append("REAL trading mode selected but API keys are missing!")
+            if self.MAX_POSITION_SIZE > 0.2:
+                warnings.append(f"MAX_POSITION_SIZE ({self.MAX_POSITION_SIZE}) is dangerously high for REAL mode.")
+        return warnings
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore"  # This prevents the "Extra inputs" error in the future
+    )
+
+# Create the instance
+settings = Settings()
+# Create an alias for 'config' if some files are still trying to import 'config'
+config = settings 

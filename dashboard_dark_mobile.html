@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>AI Trading Bot - Dark Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        :root {
+            /* Dark theme (default) */
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a2e;
+            --bg-card: rgba(26, 26, 46, 0.95);
+            --text-primary: #e0e0e0;
+            --text-secondary: #888;
+            --border-color: #333;
+            --accent-primary: #667eea;
+            --accent-secondary: #764ba2;
+            --success: #4ade80;
+            --danger: #f87171;
+            --warning: #ffaa00;
+            --gradient: linear-gradient(135deg, #667eea, #764ba2);
+            --card-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        /* Light theme */
+        [data-theme="light"] {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --bg-card: rgba(255, 255, 255, 0.95);
+            --text-primary: #1a1a2e;
+            --text-secondary: #666;
+            --border-color: #ddd;
+            --accent-primary: #667eea;
+            --accent-secondary: #764ba2;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --card-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            overflow-x: hidden;
+        }
+        
+        /* Theme Toggle Button */
+        .theme-toggle {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 50px;
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        
+        .theme-toggle:hover {
+            transform: scale(1.05);
+        }
+        
+        .theme-icon {
+            font-size: 18px;
+        }
+        
+        /* Mobile Menu Button */
+        .mobile-menu-btn {
+            display: none;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        
+        /* Navbar */
+        .navbar {
+            background: var(--bg-secondary);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .nav-links a {
+            color: var(--text-primary);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .nav-links a:hover {
+            background: var(--accent-primary);
+            color: white;
+        }
+        
+        /* Container */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        
+        /* Grid Layout - Mobile Responsive */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 15px;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            animation: fadeInUp 0.5s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--card-shadow);
+            border-color: var(--accent-primary);
+        }
+        
+        .card h3 {
+            margin-bottom: 1rem;
+            color: var(--accent-primary);
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* Metrics */
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .metric-change {
+            font-size: 0.9rem;
+        }
+        
+        .positive { color: var(--success); }
+        .negative { color: var(--danger); }
+        
+        /* Signal Badge */
+        .signal-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 10px;
+            font-weight: bold;
+            margin-top: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+        
+        .signal-buy { background: rgba(74, 222, 128, 0.2); color: var(--success); border: 1px solid var(--success); }
+        .signal-sell { background: rgba(248, 113, 113, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+        .signal-hold { background: rgba(255, 170, 0, 0.2); color: var(--warning); border: 1px solid var(--warning); }
+        
+        /* Chart */
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+        
+        /* Tables - Mobile Responsive */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 500px;
+        }
+        
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        th {
+            color: var(--accent-primary);
+            font-weight: 500;
+        }
+        
+        /* Trade Controls */
+        .trade-controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        input, select, button {
+            padding: 0.75rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+        
+        button {
+            background: var(--gradient);
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            transform: scale(1.02);
+        }
+        
+        .btn-buy { background: linear-gradient(135deg, #10b981, #059669); }
+        .btn-sell { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        
+        /* Stats Grid */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .stat-item:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        
+        .stat-number {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        /* Live Badge */
+        .live-badge {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            margin-left: 10px;
+            animation: pulse 2s infinite;
+        }
+        
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            max-width: 90%;
+            word-wrap: break-word;
+        }
+        
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Loading Spinner */
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 1rem;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .nav-links {
+                display: none;
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .nav-links.active {
+                display: flex;
+            }
+            
+            .nav-links a {
+                text-align: center;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .card {
+                padding: 1rem;
+            }
+            
+            .metric-value {
+                font-size: 1.5rem;
+            }
+            
+            .stat-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .trade-controls {
+                flex-direction: column;
+            }
+            
+            .trade-controls select,
+            .trade-controls input,
+            .trade-controls button {
+                width: 100%;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+        }
+        
+        /* Small phones */
+        @media (max-width: 480px) {
+            .logo {
+                font-size: 1.2rem;
+            }
+            
+            .stat-number {
+                font-size: 14px;
+            }
+            
+            .stat-label {
+                font-size: 9px;
+            }
+            
+            th, td {
+                padding: 0.5rem;
+                font-size: 12px;
+            }
+        }
+        
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-primary);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">
+            <span>🤖</span>
+            <span>AI Trading System</span>
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+        <div class="nav-links" id="navLinks">
+            <a href="/">Home</a>
+            <a href="/docs">API Docs</a>
+            <a href="/health">Health</a>
+            <button class="theme-toggle" onclick="toggleTheme()">
+                <span class="theme-icon">🌙</span>
+                <span id="themeText">Dark</span>
+            </button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading AI Trading Bot...</p>
+        </div>
+        
+        <div id="dashboard" style="display: none;">
+            <!-- First Row -->
+            <div class="grid">
+                <!-- Live Price Chart -->
+                <div class="card">
+                    <h3>📈 Live Price Chart <span class="live-badge"></span></h3>
+                    <div class="chart-container">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                    <div class="trade-controls">
+                        <select id="symbolSelect">
+                            <option value="BTC-USD">BTC-USD</option>
+                            <option value="ETH-USD">ETH-USD</option>
+                            <option value="BNB-USD">BNB-USD</option>
+                            <option value="SOL-USD">SOL-USD</option>
+                            <option value="ADA-USD">ADA-USD</option>
+                        </select>
+                        <input type="number" id="quantity" placeholder="Quantity" value="0.001" step="0.0001">
+                        <button class="btn-buy" onclick="executeTrade('BUY')">📈 BUY</button>
+                        <button class="btn-sell" onclick="executeTrade('SELL')">📉 SELL</button>
+                    </div>
+                    <div id="tradeMessage" style="margin-top: 10px; font-size: 12px; text-align: center;"></div>
+                </div>
+                
+                <!-- Portfolio Panel -->
+                <div class="card">
+                    <h3>💰 Portfolio</h3>
+                    <div class="metric-value" id="portfolioValue">$10,000</div>
+                    <div class="metric-change" id="portfolioChange">Total P&L: $0</div>
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Cash Balance</div>
+                            <div class="stat-number" id="cashBalance">$10,000</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Open Positions</div>
+                            <div class="stat-number" id="positionsCount">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Total Trades</div>
+                            <div class="stat-number" id="totalTrades">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Win Rate</div>
+                            <div class="stat-number positive" id="winRate">0%</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI Signal Panel -->
+                <div class="card">
+                    <h3>🎯 AI Trading Signal</h3>
+                    <div id="signalDisplay" class="signal-badge signal-hold">HOLD</div>
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Confidence</div>
+                            <div class="stat-number" id="signalConfidence">0%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Sharpe Ratio</div>
+                            <div class="stat-number" id="sharpe">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Max Drawdown</div>
+                            <div class="stat-number" id="maxDrawdown">0%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Risk Score</div>
+                            <div class="stat-number" id="riskScore">Low</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Second Row -->
+            <div class="grid">
+                <!-- AI Model Scores -->
+                <div class="card">
+                    <h3>🧠 AI Model Performance</h3>
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">XGBoost</div>
+                            <div class="stat-number" id="xgbScore">0%</div>
+                            <div class="stat-label" style="font-size: 10px;">Win: 62%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Bayesian NN</div>
+                            <div class="stat-number" id="bnnScore">0%</div>
+                            <div class="stat-label" style="font-size: 10px;">Win: 58%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">RL Agent</div>
+                            <div class="stat-number" id="rlScore">0%</div>
+                            <div class="stat-label" style="font-size: 10px;">Win: 65%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">RAG Sentiment</div>
+                            <div class="stat-number" id="ragScore">0%</div>
+                            <div class="stat-label" style="font-size: 10px;">Market Intel</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Market Prices -->
+                <div class="card">
+                    <h3>💹 Market Prices</h3>
+                    <div id="marketPrices" class="stat-grid"></div>
+                </div>
+                
+                <!-- Risk Management -->
+                <div class="card">
+                    <h3>🛡️ Risk Management</h3>
+                    <div class="stat-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Stop Loss</div>
+                            <div class="stat-number">-2%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Take Profit</div>
+                            <div class="stat-number">+4%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Position Size</div>
+                            <div class="stat-number">10%</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Risk/Trade</div>
+                            <div class="stat-number">2%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Third Row -->
+            <div class="grid">
+                <!-- Recent Trades -->
+                <div class="card">
+                    <h3>📋 Recent Trades</h3>
+                    <div class="table-wrapper">
+                        <table id="tradesTable">
+                            <thead>
+                                <tr><th>Time</th><th>Symbol</th><th>Side</th><th>Price</th><th>P&L</th></tr>
+                            </thead>
+                            <tbody><tr><td colspan="5">No trades yet</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Open Positions -->
+                <div class="card">
+                    <h3>📊 Open Positions</h3>
+                    <div class="table-wrapper">
+                        <table id="positionsTable">
+                            <thead>
+                                <tr><th>Symbol</th><th>Quantity</th><th>Entry</th><th>Current</th><th>P&L</th></tr>
+                            </thead>
+                            <tbody><tr><td colspan="5">No open positions</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let priceChart, socket;
+        let priceData = [];
+        
+        // Theme Management
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', newTheme);
+            
+            const themeIcon = document.querySelector('.theme-icon');
+            const themeText = document.getElementById('themeText');
+            
+            if (newTheme === 'light') {
+                themeIcon.innerHTML = '☀️';
+                themeText.innerHTML = 'Light';
+                localStorage.setItem('theme', 'light');
+            } else {
+                themeIcon.innerHTML = '🌙';
+                themeText.innerHTML = 'Dark';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            const themeIcon = document.querySelector('.theme-icon');
+            const themeText = document.getElementById('themeText');
+            if (savedTheme === 'light') {
+                themeIcon.innerHTML = '☀️';
+                themeText.innerHTML = 'Light';
+            }
+        }
+        
+        // Mobile Menu Toggle
+        function toggleMobileMenu() {
+            const navLinks = document.getElementById('navLinks');
+            navLinks.classList.toggle('active');
+        }
+        
+        // Initialize Chart
+        function initCharts() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Price',
+                        data: [],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: getComputedStyle(document.documentElement).getPropertyValue('--text-primary') } }
+                    }
+                }
+            });
+        }
+        
+        // Fetch Data
+        async function fetchData() {
+            try {
+                const [balance, performance, prices, positions] = await Promise.all([
+                    fetch('/api/v1/balance').then(r => r.json()),
+                    fetch('/api/v1/performance').then(r => r.json()),
+                    fetch('/api/v1/market/prices').then(r => r.json()),
+                    fetch('/api/v1/positions').then(r => r.json())
+                ]);
+                
+                document.getElementById('portfolioValue').innerHTML = `$${balance.balance?.toLocaleString() || '0'}`;
+                const pnl = balance.total_pnl || 0;
+                document.getElementById('portfolioChange').innerHTML = `Total P&L: <span class="${pnl >= 0 ? 'positive' : 'negative'}">$${pnl.toLocaleString()}</span>`;
+                document.getElementById('cashBalance').innerHTML = `$${balance.balance?.toLocaleString() || '0'}`;
+                document.getElementById('positionsCount').innerHTML = balance.positions || 0;
+                document.getElementById('totalTrades').innerHTML = performance.total_trades || 0;
+                document.getElementById('winRate').innerHTML = `${performance.win_rate || 0}%`;
+                document.getElementById('sharpe').innerHTML = performance.sharpe_ratio || 0;
+                document.getElementById('maxDrawdown').innerHTML = `${performance.max_drawdown || 0}%`;
+                
+                // Market prices
+                let pricesHtml = '';
+                for (const [symbol, price] of Object.entries(prices)) {
+                    pricesHtml += `
+                        <div class="stat-item">
+                            <div class="stat-label">${symbol}</div>
+                            <div class="stat-number">$${price.toLocaleString()}</div>
+                        </div>
+                    `;
+                }
+                document.getElementById('marketPrices').innerHTML = pricesHtml;
+                
+                // Update price chart
+                const btcPrice = prices['BTC-USD'] || 50000;
+                const timestamp = new Date().toLocaleTimeString();
+                priceData.push({ time: timestamp, price: btcPrice });
+                if (priceData.length > 30) priceData.shift();
+                priceChart.data.labels = priceData.map(d => d.time);
+                priceChart.data.datasets[0].data = priceData.map(d => d.price);
+                priceChart.update();
+                
+                // Update positions table
+                const positionsTable = document.querySelector('#positionsTable tbody');
+                if (Object.keys(positions).length > 0) {
+                    positionsTable.innerHTML = Object.entries(positions).map(([symbol, pos]) => `
+                        <tr>
+                            <td>${symbol}</td>
+                            <td>${pos.quantity?.toFixed(4)}</td>
+                            <td>$${pos.entry_price?.toFixed(2)}</td>
+                            <td>$${pos.current_price?.toFixed(2) || '-'}</td>
+                            <td class="${((pos.current_price - pos.entry_price) * pos.quantity) >= 0 ? 'positive' : 'negative'}">
+                                $${((pos.current_price - pos.entry_price) * pos.quantity).toFixed(2)}
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                
+            } catch(e) {
+                console.error('Fetch error:', e);
+                document.getElementById('loading').innerHTML = '<div class="error">❌ Connection error. Make sure backend is running.</div>';
+            }
+        }
+        
+        // Execute Trade
+        async function executeTrade(side) {
+            const symbol = document.getElementById('symbolSelect').value;
+            const quantity = parseFloat(document.getElementById('quantity').value);
+            if (isNaN(quantity) || quantity <= 0) {
+                showToast('Please enter valid quantity', 'error');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/v1/trade/execute?symbol=${symbol}&side=${side}&quantity=${quantity}`, { method: 'POST' });
+                const data = await res.json();
+                showToast(data.message, data.success ? 'success' : 'error');
+                if (data.success) fetchData();
+            } catch(e) {
+                showToast('Trade execution failed', 'error');
+            }
+        }
+        
+        // Show Toast
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.style.borderLeft = `4px solid ${type === 'success' ? '#4ade80' : '#f87171'}`;
+            toast.innerHTML = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        // WebSocket Connection
+        function connectWebSocket() {
+            socket = io('ws://localhost:8000/ws', { transports: ['websocket'], upgrade: false });
+            socket.on('connect', () => console.log('WebSocket connected'));
+            socket.on('market_update', (data) => {
+                if (data.signal) {
+                    const signalDiv = document.getElementById('signalDisplay');
+                    signalDiv.textContent = data.signal;
+                    signalDiv.className = `signal-badge signal-${data.signal.toLowerCase()}`;
+                    document.getElementById('signalConfidence').innerHTML = `${Math.round((data.confidence || 0.75) * 100)}%`;
+                    if (data.model_scores) {
+                        document.getElementById('xgbScore').innerHTML = `${Math.round((data.model_scores.xgb || 0.62) * 100)}%`;
+                        document.getElementById('bnnScore').innerHTML = `${Math.round((data.model_scores.bnn || 0.58) * 100)}%`;
+                        document.getElementById('rlScore').innerHTML = `${Math.round((data.model_scores.rl || 0.65) * 100)}%`;
+                        document.getElementById('ragScore').innerHTML = `${Math.round((data.model_scores.rag || 0.70) * 100)}%`;
+                    }
+                }
+            });
+        }
+        
+        // Initialize
+        initCharts();
+        fetchData();
+        setInterval(fetchData, 5000);
+        connectWebSocket();
+        
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const navLinks = document.getElementById('navLinks');
+            const menuBtn = document.querySelector('.mobile-menu-btn');
+            if (!navLinks.contains(event.target) && !menuBtn.contains(event.target) && navLinks.classList.contains('active')) {
+                navLinks.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>

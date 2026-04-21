@@ -1,0 +1,88 @@
+# Makefile for AI Trading Bot
+
+.PHONY: help install install-dev run-api run-trading run-both run-frontend test lint clean init-data init-kb
+
+help:
+	@echo "Available commands:"
+	@echo "  make install      - Install Python dependencies"
+	@echo "  make install-dev  - Install dev dependencies"
+	@echo "  make run-api      - Start API server"
+	@echo "  make run-trading  - Start trading engine"
+	@echo "  make run-both     - Start both API and trading engine"
+	@echo "  make run-frontend - Start React frontend"
+	@echo "  make test         - Run tests"
+	@echo "  make lint         - Run linters"
+	@echo "  make clean        - Clean cache files"
+	@echo "  make init-data    - Initialize data directories"
+	@echo "  make init-kb      - Initialize knowledge base"
+
+install:
+	pip install -r requirements.txt
+
+install-dev:
+	pip install -r requirements-dev.txt
+
+run-api:
+	python run.py --mode api --reload
+
+run-trading:
+	python run.py --mode trading --trading-mode VIRTUAL
+
+run-both:
+	python run.py --mode both --trading-mode VIRTUAL
+
+run-frontend:
+	cd frontend && npm start
+
+test:
+	pytest tests/ -v --cov=app --cov-report=term-missing
+
+test-api:
+	pytest tests/test_api.py -v
+
+test-models:
+	pytest tests/test_models.py -v
+
+test-strategies:
+	pytest tests/test_strategies.py -v
+
+lint:
+	flake8 app/ --max-line-length=120
+	pylint app/ --max-line-length=120
+	black app/ --check
+
+format:
+	black app/ --line-length=120
+	isort app/
+
+clean:
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+	find . -type f -name "*.pyo" -delete
+	find . -type f -name ".coverage" -delete
+	find . -type d -name ".pytest_cache" -exec rm -rf {} +
+	find . -type d -name ".mypy_cache" -exec rm -rf {} +
+
+init-data:
+	mkdir -p data/market data/models data/trades data/logs data/reports data/knowledge
+
+init-kb:
+	python scripts/init_knowledge_base.py
+
+train-model:
+	python scripts/train_advanced_model.py --symbol BTC-USD
+
+backtest:
+	python scripts/run_backtest.py --symbol BTC-USD --strategy all
+
+monitor:
+	python scripts/monitor.py
+
+docker-build:
+	docker build -t ai-trading-bot .
+
+docker-run:
+	docker-compose up -d
+
+docker-stop:
+	docker-compose down
